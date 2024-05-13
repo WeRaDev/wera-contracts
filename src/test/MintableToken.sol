@@ -13,7 +13,7 @@ contract MintableToken is Ownable, MockERC20 {
         uint8 decimals_
     ) Ownable(msg.sender) MockERC20(name_, symbol_, decimals_) {}
 
-    function mint(address to, uint256 amount) public override onlyOwner {
-        _mint(to, amount);
+    function mint(address to_, uint256 amount_) public override onlyOwner {
+        _mint(to_, amount_);
     }
 }
