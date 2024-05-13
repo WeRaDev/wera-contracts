@@ -11,8 +11,9 @@ library LibWeRaStaking {
     // ========= STORAGE ========= //
 
     struct WeRaStakingStorage {
+        bool initialized;
         /// WeRa Token, minted and burned based on staking contracts
-        address weraToken;
+        address weRaToken;
         EnumerableSet.AddressSet stakeTokens;
         mapping(address => IWeRaStakingFacet.StakeBalance) stakeBalances;
     }

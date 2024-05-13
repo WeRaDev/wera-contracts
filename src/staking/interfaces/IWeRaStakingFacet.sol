@@ -5,13 +5,16 @@ pragma solidity =0.8.25;
 interface IWeRaStakingFacet {
     // ========= ERRORS ========= //
 
-    /// @notice Thrown when someone tries to stake zero tokens
+    /// @notice Thrown when initialize the contract a second time
+    error AlreadyInitialized();
+
+    /// @notice Thrown when stake zero tokens
     error ZeroStake();
 
-    /// @notice Thrown when someone tries to unstake zero tokens
+    /// @notice Thrown when unstake zero tokens
     error ZeroUnstake();
 
-    /// @notice Thrown when someone tries to unstake more tokens than they have staked
+    /// @notice Thrown when unstake more tokens than have staked
     error UnstakeExceedsBalance();
 
     // ========= STRUCTS ========= //
@@ -38,6 +41,8 @@ interface IWeRaStakingFacet {
     );
 
     // ========= FUNCTIONS ========= //
+
+    function initialize(address weRaToken_, address tokenManager_) external;
 
     function stakeFor(address token_, address receiver_, uint256 amount_) external;
 

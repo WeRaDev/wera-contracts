@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.25;
 
-// TODO use openzeppelin upgradeable
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ERC20BurnableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import {IWeRaStakingFacet} from "../interfaces/IWeRaStakingFacet.sol";
@@ -13,23 +13,41 @@ import {IWeP} from "../../tokens/IWeP.sol";
 import {LibWeRaStaking as Storage} from "../libraries/LibWeRaStaking.sol";
 
 /// @title WeRaStakingFacet
-contract WeRaStakingFacet is IWeRaStakingFacet, AccessControl, ReentrancyGuard {
+contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    // TODO use upgradeable openzeppelin
     // TODO add modifier to check if token is in stakeTokens
 
     bytes32 public constant STAKE_TOKENS_MANAGER = keccak256("STAKE_TOKENS_MANAGER");
 
     //============================================================================================//
+    //                                       MODIFIERS                                            //
+    //============================================================================================//
+
+    /**
+     * @dev Prevents second initialization
+     */
+    modifier notInitialized() {
+        Storage.WeRaStakingStorage storage s = Storage.getStorage();
+
+        if (s.initialized) revert AlreadyInitialized();
+        s.initialized = true;
+        _;
+    }
+
+    //============================================================================================//
     //                                      CONSTRUCTOR                                           //
     //============================================================================================//
 
-    constructor(address weraToken_, address tokenManager_) {
+    /// @dev Contrcutor can not be used in proxy contracts
+    function initialize(
+        address weRaToken_,
+        address tokenManager_
+    ) external notInitialized {
         _grantRole(STAKE_TOKENS_MANAGER, tokenManager_);
 
-        Storage.getStorage().weraToken = weraToken_;
+        Storage.getStorage().weRaToken = weRaToken_;
     }
 
     //============================================================================================//
@@ -105,7 +123,7 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControl, ReentrancyGuard {
         s.stakeBalances[token_].totalBalance += amount_;
 
         IERC20(token_).safeTransferFrom(supplier_, address(this), amount_);
-        IWeP(s.weraToken).mint(receiver_, amount_); // mint 1:1
+        IWeP(s.weRaToken).mint(receiver_, amount_); // mint 1:1
 
         emit StakeAdded(token_, supplier_, receiver_, amount_);
     }
@@ -125,7 +143,7 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControl, ReentrancyGuard {
         s.stakeBalances[token_].totalBalance -= amount_;
 
         IERC20(token_).safeTransfer(receiver_, amount_);
-        ERC20Burnable(s.weraToken).burnFrom(staker_, amount_); // burn 1:1, require spend allowance
+        ERC20BurnableUpgradeable(s.weRaToken).burnFrom(staker_, amount_); // burn 1:1, require spend allowance
 
         emit StakeRemoved(token_, staker_, receiver_, amount_);
     }

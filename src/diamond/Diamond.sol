@@ -13,16 +13,19 @@ import { IDiamondCut } from "./interfaces/IDiamondCut.sol";
 import { IDiamondLoupe } from "./interfaces/IDiamondLoupe.sol";
 import { IERC165 } from "./interfaces/IERC165.sol";
 
+import { IWeRaStakingFacet } from "../staking/interfaces/IWeRaStakingFacet.sol";
+
 contract Diamond {
     constructor(
-        address _contractOwner,
+        address _diamondOwner,
         address _diamondCutFacet,
-        address _diamondLoupeFacet
+        address _diamondLoupeFacet,
+        address _weRaStakingFacet
     ) payable {
-        LibDiamond.setContractOwner(_contractOwner);
+        LibDiamond.setContractOwner(_diamondOwner);
 
         // Add the diamondCut external function from the diamondCutFacet
-        IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](2);
+        IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](3);
 
         // Diamond Cut Facet
         bytes4[] memory cutFacetSelectors = new bytes4[](1);
@@ -44,6 +47,23 @@ contract Diamond {
             facetAddress: _diamondLoupeFacet,
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: loupeFacetSelectors
+        });
+
+        // WeRaStaking Facet
+        bytes4[] memory weRaStakingFacetSelectors = new bytes4[](10);
+        weRaStakingFacetSelectors[0] = IWeRaStakingFacet.initialize.selector;
+        weRaStakingFacetSelectors[1] = IWeRaStakingFacet.stakeFor.selector;
+        weRaStakingFacetSelectors[2] = IWeRaStakingFacet.stake.selector;
+        weRaStakingFacetSelectors[3] = IWeRaStakingFacet.unstake.selector;
+        weRaStakingFacetSelectors[4] = IWeRaStakingFacet.addStakeToken.selector;
+        weRaStakingFacetSelectors[5] = IWeRaStakingFacet.getTokenBalance.selector;
+        weRaStakingFacetSelectors[6] = IWeRaStakingFacet.getTokenTotalBalance.selector;
+        weRaStakingFacetSelectors[7] = IWeRaStakingFacet.stakeTokensLength.selector;
+        weRaStakingFacetSelectors[8] = IWeRaStakingFacet.stakeTokensAt.selector;
+        cut[2] = IDiamondCut.FacetCut({
+            facetAddress: _weRaStakingFacet,
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: weRaStakingFacetSelectors
         });
 
         LibDiamond.diamondCut(cut, address(0), "");
