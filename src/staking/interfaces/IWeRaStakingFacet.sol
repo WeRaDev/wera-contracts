@@ -8,6 +8,9 @@ interface IWeRaStakingFacet {
     /// @notice Thrown when initialize the contract a second time
     error AlreadyInitialized();
 
+    /// @notice Thrown when trying to stake a token that is not allowed
+    error BadStakeToken();
+
     /// @notice Thrown when stake zero tokens
     error ZeroStake();
 

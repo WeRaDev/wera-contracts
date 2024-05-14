@@ -17,22 +17,25 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    // TODO add modifier to check if token is in stakeTokens
-
     bytes32 public constant STAKE_TOKENS_MANAGER = keccak256("STAKE_TOKENS_MANAGER");
 
     //============================================================================================//
     //                                       MODIFIERS                                            //
     //============================================================================================//
 
-    /**
-     * @dev Prevents second initialization
-     */
+    /// @dev Prevents second initialization
     modifier notInitialized() {
         Storage.WeRaStakingStorage storage s = Storage.getStorage();
 
         if (s.initialized) revert AlreadyInitialized();
         s.initialized = true;
+        _;
+    }
+
+    modifier onlyStakeToken(address token) {
+        Storage.WeRaStakingStorage storage s = Storage.getStorage();
+
+        if (!s.stakeTokens.contains(token)) revert BadStakeToken();
         _;
     }
 
@@ -56,6 +59,7 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
 
     function stakeFor(address token_, address receiver_, uint256 amount_)
         external
+        onlyStakeToken(token_)
         nonReentrant
     {
         _stake(token_, msg.sender, receiver_, amount_);
@@ -63,6 +67,7 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
 
     function stake(address token_, uint256 amount_)
         external
+        onlyStakeToken(token_)
         nonReentrant
     {
         _stake(token_, msg.sender, msg.sender, amount_);
@@ -70,6 +75,7 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
 
     function unstake(address token_, address receiver_, uint256 amount_)
         external
+        onlyStakeToken(token_)
         nonReentrant
     {
         _unstake(token_, msg.sender, receiver_, amount_);
