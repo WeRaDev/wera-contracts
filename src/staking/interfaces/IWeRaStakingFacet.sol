@@ -43,16 +43,20 @@ interface IWeRaStakingFacet {
         uint256 value
     );
 
+    // ========= ROLE ========= //
+
+    function STAKE_TOKENS_MANAGER() external view returns (bytes32);
+
     // ========= FUNCTIONS ========= //
 
-    function initialize(address weRaToken_, address tokenManager_) external;
+
+    function initialize(address tokenManager_, address weRaToken_) external;
 
     function stakeFor(address token_, address receiver_, uint256 amount_) external;
 
     function stake(address token_, uint256 amount_) external;
 
     function unstake(address token_, address receiver_, uint256 amount_) external;
-
 
     function addStakeToken(address token_) external;
 

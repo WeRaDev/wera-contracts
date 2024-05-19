@@ -9,7 +9,7 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import {IWeRaStakingFacet} from "../interfaces/IWeRaStakingFacet.sol";
-import {IWeP} from "../../tokens/IWeP.sol";
+import {IWeP} from "../../token/IWeP.sol";
 import {LibWeRaStaking as Storage} from "../libraries/LibWeRaStaking.sol";
 
 /// @title WeRaStakingFacet
@@ -45,9 +45,10 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
 
     /// @dev Contrcutor can not be used in proxy contracts
     function initialize(
-        address weRaToken_,
-        address tokenManager_
+        address tokenManager_,
+        address weRaToken_
     ) external notInitialized {
+        _grantRole(DEFAULT_ADMIN_ROLE, tokenManager_);
         _grantRole(STAKE_TOKENS_MANAGER, tokenManager_);
 
         Storage.getStorage().weRaToken = weRaToken_;

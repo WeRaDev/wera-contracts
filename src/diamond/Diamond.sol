@@ -13,6 +13,7 @@ import { IDiamondCut } from "./interfaces/IDiamondCut.sol";
 import { IDiamondLoupe } from "./interfaces/IDiamondLoupe.sol";
 import { IERC165 } from "./interfaces/IERC165.sol";
 
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { IWeRaStakingFacet } from "../staking/interfaces/IWeRaStakingFacet.sol";
 
 contract Diamond {
@@ -25,7 +26,7 @@ contract Diamond {
         LibDiamond.setContractOwner(_diamondOwner);
 
         // Add the diamondCut external function from the diamondCutFacet
-        IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](3);
+        IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](4);
 
         // Diamond Cut Facet
         bytes4[] memory cutFacetSelectors = new bytes4[](1);
@@ -49,18 +50,32 @@ contract Diamond {
             functionSelectors: loupeFacetSelectors
         });
 
+        // Access Control for WeRaStaking Facet // TODO separate into its own facet
+        bytes4[] memory accessControlSelectors = new bytes4[](5);
+        accessControlSelectors[0] = IAccessControl.hasRole.selector;
+        accessControlSelectors[1] = IAccessControl.getRoleAdmin.selector;
+        accessControlSelectors[2] = IAccessControl.grantRole.selector;
+        accessControlSelectors[3] = IAccessControl.revokeRole.selector;
+        accessControlSelectors[4] = IAccessControl.renounceRole.selector;
+        cut[2] = IDiamondCut.FacetCut({
+            facetAddress: _weRaStakingFacet,
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: accessControlSelectors
+        });
+
         // WeRaStaking Facet
         bytes4[] memory weRaStakingFacetSelectors = new bytes4[](10);
-        weRaStakingFacetSelectors[0] = IWeRaStakingFacet.initialize.selector;
-        weRaStakingFacetSelectors[1] = IWeRaStakingFacet.stakeFor.selector;
-        weRaStakingFacetSelectors[2] = IWeRaStakingFacet.stake.selector;
-        weRaStakingFacetSelectors[3] = IWeRaStakingFacet.unstake.selector;
-        weRaStakingFacetSelectors[4] = IWeRaStakingFacet.addStakeToken.selector;
-        weRaStakingFacetSelectors[5] = IWeRaStakingFacet.getTokenBalance.selector;
-        weRaStakingFacetSelectors[6] = IWeRaStakingFacet.getTokenTotalBalance.selector;
-        weRaStakingFacetSelectors[7] = IWeRaStakingFacet.stakeTokensLength.selector;
-        weRaStakingFacetSelectors[8] = IWeRaStakingFacet.stakeTokensAt.selector;
-        cut[2] = IDiamondCut.FacetCut({
+        weRaStakingFacetSelectors[0] = IWeRaStakingFacet.STAKE_TOKENS_MANAGER.selector;
+        weRaStakingFacetSelectors[1] = IWeRaStakingFacet.initialize.selector;
+        weRaStakingFacetSelectors[2] = IWeRaStakingFacet.stakeFor.selector;
+        weRaStakingFacetSelectors[3] = IWeRaStakingFacet.stake.selector;
+        weRaStakingFacetSelectors[4] = IWeRaStakingFacet.unstake.selector;
+        weRaStakingFacetSelectors[5] = IWeRaStakingFacet.addStakeToken.selector;
+        weRaStakingFacetSelectors[6] = IWeRaStakingFacet.getTokenBalance.selector;
+        weRaStakingFacetSelectors[7] = IWeRaStakingFacet.getTokenTotalBalance.selector;
+        weRaStakingFacetSelectors[8] = IWeRaStakingFacet.stakeTokensLength.selector;
+        weRaStakingFacetSelectors[9] = IWeRaStakingFacet.stakeTokensAt.selector;
+        cut[3] = IDiamondCut.FacetCut({
             facetAddress: _weRaStakingFacet,
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: weRaStakingFacetSelectors
