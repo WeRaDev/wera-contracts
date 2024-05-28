@@ -1,3 +1,35 @@
+# WeRa Contracts
+
+This repository contains the core implementation of WeRa's smart contracts.
+
+## Components
+
+1. **Diamond Proxy**:
+    - `src/diamond/Diamond.sol`
+    - Implements modular and upgradable contract architecture.
+
+2. **WeP ERC20 Token**:
+    - `src/token/WeP.sol`
+    - Mintable and burnable ERC20 token with OpenZeppelin ERC20Votes.
+
+3. **Staking Contract**:
+    - `src/staking/facets/WeRaStakingFacet.sol`
+    - Manages staking with a treasury, minting and burning WeP tokens 1:1 with a stablecoin.
+
+4. **Test Stablecoin**:
+    - `src/test/TokenMock.sol`
+    - Mock stablecoin for testing purposes.
+
+5. **Faucet for Stablecoin**:
+    - `src/test/TokenFaucet.sol`
+    - Provides test stablecoins to users.
+
+## Summary
+
+This core implementation provides foundational token and staking mechanics, leveraging the Diamond Proxy pattern for flexibility and upgradability.
+
+---
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
