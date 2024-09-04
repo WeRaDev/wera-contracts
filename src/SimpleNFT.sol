@@ -46,7 +46,6 @@ contract MyToken is ERC721, Ownable {
 
         nft_counter += 1;
         arrayValue.push(nft_counter);
-        console.log("HERE",arrayValue[3]);
 
         _safeMint(to, nft_counter);
     }
