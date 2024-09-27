@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import "../src/SimpleNFT.sol";
+import "../src/token/NFTMinter.sol";
 
 // Mock WETH contract for testing
 contract MockWETH is IERC20 {

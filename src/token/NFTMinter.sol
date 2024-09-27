@@ -9,7 +9,7 @@ import "forge-std/console.sol";
 contract MyToken is ERC721, Ownable {
     address public Owner; // Address of the admin
     address public recipient; // Address to automatically send ETH to after NFT purchase
-    address public developer = 0xce7a6f6a800A632341061c007faa3c4068D3F72e; // dev address for refferal  
+    address public developer = 0xce7a6f6a800A632341061c007faa3c4068D3F72e; // dev address for refferal
 
     mapping(address => bool) public whitelist; // Mapping for whitelist
     mapping(address => bool) public admin_list; // Mapping for admins
@@ -98,7 +98,7 @@ contract MyToken is ERC721, Ownable {
     function proposeAddAdmin(address _newAdmin) external onlyAdmin {
         require(!admin_list[_newAdmin], "Proposed user is already an admin");
         proposedAddAdminAddresses[_newAdmin] = true;
-        proposedAddAdminList.push(_newAdmin); // Add this line  
+        proposedAddAdminList.push(_newAdmin); // Add this line
     }
 
     function proposeRemoveAdmin(address _removeAdmin) external onlyAdmin {
@@ -131,8 +131,6 @@ contract MyToken is ERC721, Ownable {
             proposedAddUserAddresses[_target] = false;
             delete proposedBy[_target];
             _removeFromArray(_target, proposedAddUserList);
-        
-
 
         } else if (_proposalType == ProposalType.RemoveUser) {
             require(purposedRemoveAddresses[_target], "No proposal to remove user");
