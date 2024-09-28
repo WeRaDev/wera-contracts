@@ -1,113 +1,93 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "forge-std/console.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {AccessControlEnumerable, AccessControl} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract MyToken is ERC721, Ownable {
-    address public Owner; // Address of the admin
+contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
+    using SafeERC20 for IERC20;
+
+    enum ProposalType { AddUser, RemoveUser, AddAdmin, RemoveAdmin }
+
+    bytes32 public constant NFT_ADMIN_ROLE = keccak256("NFT_ADMIN_ROLE");
+
     address public recipient; // Address to automatically send ETH to after NFT purchase
     address public developer = 0xce7a6f6a800A632341061c007faa3c4068D3F72e; // dev address for refferal
 
     mapping(address => bool) public whitelist; // Mapping for whitelist
-    mapping(address => bool) public admin_list; // Mapping for admins
     mapping(address => bool) public hasMinted; // Mapping to track if an address has minted an NFT
 
     // Corrected mapping names
     mapping(address => bool) public proposedAddUserAddresses;
-    mapping(address => bool) public purposedRemoveAddresses;
+    mapping(address => bool) public proposedRemoveAddresses;
     mapping(address => bool) public proposedAddAdminAddresses;
     mapping(address => bool) public proposedRemoveAdminAddresses;
 
     mapping(address => address) public proposedBy; // Маппинг для хранения того, кто предложил нового пользователя
 
+    /// The counter is always incremented by 1 every mint, so the total number and IDs of all NFTs
+    /// can be determined using this variable alone.
+    uint256 public nft_counter = 0;
 
-
-    uint256 public nft_counter = 0; // Counter for minted NFTs
-    uint256[] public nftIds; // Array to store NFT ids
     uint256 public nftPrice; // Price of each NFT in WETH
     IERC20 public weth; // Interface for WETH token
-    bool public paused = false; // pause contract
-
-    // Add these array declarations
-    address[] public proposedAddUserList;
-    address[] public proposedRemoveUserList;
-    address[] public proposedAddAdminList;
-    address[] public proposedRemoveAdminList;
-
 
     // Referral system
     mapping(address => address) public referrer; // Stores the referrer for each user
     mapping(address => uint256) public referralRewards; // Stores rewards for each referrer
     uint256 public referralPercentage = 5; // 5% referral reward
 
-    enum ProposalType { AddUser, RemoveUser, AddAdmin, RemoveAdmin }
+    modifier onlyAdmin() {
+        require(hasRole(NFT_ADMIN_ROLE, msg.sender), "Only an admin can perform this action");
+        _;
+    }
 
+    modifier onlyOwner() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Only the owner can perform this action");
+        _;
+    }
 
     // Constructor accepts the address of the admin, NFT price, WETH contract address, and recipient address
     constructor(
         address _admin,
         uint256 _nftPrice,
         address _wethAddress,
-        address _recipient,
-        address test_admin
-    ) ERC721("WeRa", "WeR") Ownable(_admin) {  // Указываем _admin как владельца (или укажите адрес владельца)
-        Owner = _admin;
+        address _recipient
+    ) ERC721("WeRa", "WeR") {
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin); // main owner who can grant and revoke other roles
+        _grantRole(NFT_ADMIN_ROLE, _admin);
+
         nftPrice = _nftPrice;
         weth = IERC20(_wethAddress);
+
         recipient = _recipient;
-        admin_list[_admin] = true;
         whitelist[_admin] = true;
-        admin_list[test_admin] = true;
 
     }
 
-    // Modifier to allow actions only by admin
-    modifier onlyAdmin() {
-        require(admin_list[msg.sender], "Only an admin can perform this action");
-        _;
-    }
-    // Modifier to allow actions only by owner
-    modifier OnlyOwner() {
-        require(msg.sender == owner(), "Only the owner can perform this action");
-        _;
-    }
-
-    // Модификатор для проверки, что контракт не на паузе
-    modifier whenNotPaused() {
-        require(!paused, "Contract is paused");
-        _;
-    }
     // Добавляем новый параметр в функцию предложения
     function proposeAddUser(address _newUser) external onlyAdmin {
         require(!whitelist[_newUser], "User is already in the whitelist");
         proposedBy[_newUser] = msg.sender; // Store the proposer
         proposedAddUserAddresses[_newUser] = true;
-        proposedAddUserList.push(_newUser); // Add this line
     }
 
     function proposeRemoveUser(address _removeUser) external onlyAdmin {
         require(whitelist[_removeUser], "Proposed user is not in the whitelist");
-        purposedRemoveAddresses[_removeUser] = true;
-        proposedRemoveUserList.push(_removeUser); // Add this line
+        proposedRemoveAddresses[_removeUser] = true;
     }
 
-
     function proposeAddAdmin(address _newAdmin) external onlyAdmin {
-        require(!admin_list[_newAdmin], "Proposed user is already an admin");
+        require(!hasRole(NFT_ADMIN_ROLE, _newAdmin), "Proposed user is already an admin");
         proposedAddAdminAddresses[_newAdmin] = true;
-        proposedAddAdminList.push(_newAdmin); // Add this line
     }
 
     function proposeRemoveAdmin(address _removeAdmin) external onlyAdmin {
-        require(admin_list[_removeAdmin], "Proposed user is not an admin");
+        require(hasRole(NFT_ADMIN_ROLE, _removeAdmin), "Proposed user is not an admin");
         proposedRemoveAdminAddresses[_removeAdmin] = true;
-        proposedRemoveAdminList.push(_removeAdmin); // Add this line
     }
-
-
 
     // Универсальная функция для одобрения или отклонения предложений
     // Function to decide on proposals
@@ -127,84 +107,66 @@ contract MyToken is ERC721, Ownable {
                     // referrer[_target] = proposer;
                 }
             }
-            // Remove proposal
-            proposedAddUserAddresses[_target] = false;
-            delete proposedBy[_target];
-            _removeFromArray(_target, proposedAddUserList);
 
         } else if (_proposalType == ProposalType.RemoveUser) {
-            require(purposedRemoveAddresses[_target], "No proposal to remove user");
+            require(proposedRemoveAddresses[_target], "No proposal to remove user");
 
             if (approve) {
                 // Remove user from whitelist
                 whitelist[_target] = false;
             }
             // Remove proposal
-            purposedRemoveAddresses[_target] = false;
-            _removeFromArray(_target, proposedRemoveUserList);
+            proposedRemoveAddresses[_target] = false;
 
         } else if (_proposalType == ProposalType.AddAdmin) {
             require(proposedAddAdminAddresses[_target], "No proposal to add admin");
 
             if (approve) {
                 // Add user to admin list
-                admin_list[_target] = true;
+                _grantRole(NFT_ADMIN_ROLE, _target);
             }
             // Remove proposal
             proposedAddAdminAddresses[_target] = false;
-            _removeFromArray(_target, proposedAddAdminList);
 
         } else if (_proposalType == ProposalType.RemoveAdmin) {
             require(proposedRemoveAdminAddresses[_target], "No proposal to remove admin");
 
             if (approve) {
                 // Remove user from admin list
-                admin_list[_target] = false;
+                _revokeRole(NFT_ADMIN_ROLE, _target);
             }
             // Remove proposal
             proposedRemoveAdminAddresses[_target] = false;
-            _removeFromArray(_target, proposedRemoveAdminList);
         }
     }
-    function _removeFromArray(address _target, address[] storage _list) internal {
-        uint256 length = _list.length;
-        for (uint256 i = 0; i < length; i++) {
-            if (_list[i] == _target) {
-                _list[i] = _list[length - 1];
-                _list.pop();
-                break;
-            }
-        }
-    }
-
 
     // Функция для постановки на паузу (только админ может вызывать)
     function pauseContract() external onlyAdmin {
-        paused = true;
+        _pause();
     }
 
     // Функция для снятия с паузы (только админ может вызывать)
     function unpauseContract() external onlyAdmin {
-        paused = false;
+        _unpause();
     }
 
-    // Function to add an address to the whitelist (admin only)
-    function addToWhitelist(address _user) external OnlyOwner {
+    // Function to add an address to the whitelist (default admin only)
+    function addToWhitelist(address _user) external onlyOwner {
         whitelist[_user] = true;
     }
 
-    // Function to remove an address from the whitelist (admin only)
-    function removeFromWhitelist(address _user) external OnlyOwner() {
+    // Function to remove an address from the whitelist (default admin only)
+    function removeFromWhitelist(address _user) external onlyOwner() {
         whitelist[_user] = false;
     }
 
-    function addNewAdmin(address _user) external OnlyOwner {
-        admin_list[_user] = true;
+    function addNewAdmin(address _user) external onlyOwner {
+        _grantRole(NFT_ADMIN_ROLE, _user);
     }
 
     // Function to remove an address from the admins (admin only)
-    function removeAdmin(address _user) external OnlyOwner() {
-        admin_list[_user] = false;
+    function removeAdmin(address _user) external onlyOwner() {
+        _revokeRole(NFT_ADMIN_ROLE, _user);
     }
 
     // Function to set the price of the NFT (only owner)
@@ -223,13 +185,10 @@ contract MyToken is ERC721, Ownable {
     }
 
     // Function to safely mint an NFT (only owner)
-    function safeMint(address to) public onlyOwner whenNotPaused {
-
+    function safeMint(address to) external onlyOwner whenNotPaused {
         require(whitelist[to], "Address is not in the whitelist");
 
         nft_counter += 1;
-        nftIds.push(nft_counter);
-
         _safeMint(to, nft_counter);
     }
 
@@ -241,6 +200,10 @@ contract MyToken is ERC721, Ownable {
         // Используем proposedBy как реферера, если он есть
         if (proposedBy[msg.sender] != address(0) && referrer[msg.sender] == address(0)) {
             referrer[msg.sender] = proposedBy[msg.sender];
+
+            // Remove proposal
+            proposedAddUserAddresses[msg.sender] = false;
+            delete proposedBy[msg.sender];
         }
 
         uint256 referralAmount = 0;
@@ -256,142 +219,32 @@ contract MyToken is ERC721, Ownable {
         uint256 recipientAmount = nftPrice - referralAmount - developerAmount;
 
         // Перевод WETH получателю, рефереру и разработчику
-        bool success = weth.transferFrom(msg.sender, recipient, recipientAmount);
-        require(success, "Failed to transfer WETH to recipient");
+        weth.safeTransferFrom(msg.sender, recipient, recipientAmount);
 
         if (referralAmount > 0) {
-            success = weth.transferFrom(msg.sender, referrer[msg.sender], referralAmount);
-            require(success, "Failed to transfer WETH to referrer");
+            // store referralAmount for withdrawReferralRewards
+            weth.safeTransferFrom(msg.sender, address(this), referralAmount);
         }
 
         // Перевод 2% разработчику
-        success = weth.transferFrom(msg.sender, developer, developerAmount);
-        require(success, "Failed to transfer WETH to developer");
+        weth.safeTransferFrom(msg.sender, developer, developerAmount);
 
         // Чеканим NFT для покупателя
         nft_counter += 1;
-        nftIds.push(nft_counter);
         _safeMint(msg.sender, nft_counter);
 
         hasMinted[msg.sender] = true;
     }
-
-
 
     // Function to withdraw referral rewards
     function withdrawReferralRewards() external whenNotPaused {
         uint256 rewards = referralRewards[msg.sender];
         require(rewards > 0, "No rewards to withdraw");
         referralRewards[msg.sender] = 0;
-        weth.transfer(msg.sender, rewards);
+        weth.safeTransfer(msg.sender, rewards);
     }
 
-    // Function to get all minted NFTs
-    function getAllMintedNFTs() public view returns (uint256[] memory) {
-        return nftIds;
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, AccessControlEnumerable) returns (bool) {
+        return (ERC721.supportsInterface(interfaceId) || AccessControlEnumerable.supportsInterface(interfaceId));
     }
-    // Получение списка адресов с предложениями на добавление в whitelist
-    function getProposedAddUserAddresses() external view returns (address[] memory) {
-        uint256 count = 0;
-
-        // Подсчет количества предложений
-        for (uint256 i = 0; i < proposedAddUserList.length; i++) {
-            if (proposedAddUserAddresses[proposedAddUserList[i]]) {
-                count++;
-            }
-        }
-
-        // Создание массива для хранения адресов
-        address[] memory result = new address[](count);
-        uint256 index = 0;
-
-        // Заполнение массива адресами с предложениями
-        for (uint256 i = 0; i < proposedAddUserList.length; i++) {
-            if (proposedAddUserAddresses[proposedAddUserList[i]]) {
-                result[index] = proposedAddUserList[i];
-                index++;
-            }
-        }
-
-        return result;
-    }
-
-    // Получение списка адресов с предложениями на удаление из whitelist
-    function getProposedRemoveUserAddresses() external view returns (address[] memory) {
-        uint256 count = 0;
-
-        // Подсчет количества предложений
-        for (uint256 i = 0; i < proposedRemoveUserList.length; i++) {
-            if (purposedRemoveAddresses[proposedRemoveUserList[i]]) {
-                count++;
-            }
-        }
-
-        // Создание массива для хранения адресов
-        address[] memory result = new address[](count);
-        uint256 index = 0;
-
-        // Заполнение массива адресами с предложениями
-        for (uint256 i = 0; i < proposedRemoveUserList.length; i++) {
-            if (purposedRemoveAddresses[proposedRemoveUserList[i]]) {
-                result[index] = proposedRemoveUserList[i];
-                index++;
-            }
-        }
-
-        return result;
-    }
-
-    // Получение списка адресов с предложениями на добавление в admin_list
-    function getProposedAddAdminAddresses() external view returns (address[] memory) {
-        uint256 count = 0;
-
-        // Подсчет количества предложений
-        for (uint256 i = 0; i < proposedAddUserList.length; i++) {
-            if (proposedAddUserAddresses[proposedAddUserList[i]]) {
-                count++;
-            }
-        }
-
-        // Создание массива для хранения адресов
-        address[] memory result = new address[](count);
-        uint256 index = 0;
-
-        // Заполнение массива адресами с предложениями
-        for (uint256 i = 0; i < proposedAddUserList.length; i++) {
-            if (proposedAddUserAddresses[proposedAddUserList[i]]) {
-                result[index] = proposedAddUserList[i];
-                index++;
-            }
-        }
-
-        return result;
-    }
-
-    // Получение списка адресов с предложениями на удаление из admin_list
-    function getProposedRemoveAdminAddresses() external view returns (address[] memory) {
-        uint256 count = 0;
-
-        // Подсчет количества предложений
-        for (uint256 i = 0; i < proposedRemoveUserList.length; i++) {
-            if (purposedRemoveAddresses[proposedRemoveUserList[i]]) {
-                count++;
-            }
-        }
-
-        // Создание массива для хранения адресов
-        address[] memory result = new address[](count);
-        uint256 index = 0;
-
-        // Заполнение массива адресами с предложениями
-        for (uint256 i = 0; i < proposedRemoveUserList.length; i++) {
-            if (purposedRemoveAddresses[proposedRemoveUserList[i]]) {
-                result[index] = proposedRemoveUserList[i];
-                index++;
-            }
-        }
-
-        return result;
-    }
-
 }
