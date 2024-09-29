@@ -15,6 +15,8 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
 
     address public recipient; // Address to automatically send ETH to after NFT purchase
     address public developer = 0xce7a6f6a800A632341061c007faa3c4068D3F72e; // dev address for refferal
+    string private _baseTokenURI;
+
 
     mapping(address => bool) public whitelist; // Mapping for whitelist
     mapping(address => bool) public hasMinted; // Mapping to track if an address has minted an NFT
@@ -51,10 +53,11 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
 
     // Constructor accepts the address of the admin, NFT price, WETH contract address, and recipient address
     constructor(
-        address _admin,
-        uint256 _nftPrice,
-        address _wethAddress,
-        address _recipient
+    address _admin,
+    uint256 _nftPrice,
+    address _wethAddress,
+    address _recipient,
+    string memory baseURI // Новый параметр для baseURI
     ) ERC721("WeRa", "WeR") {
         _grantRole(DEFAULT_ADMIN_ROLE, _admin); // main owner who can grant and revoke other roles
         _grantRole(NFT_ADMIN_ROLE, _admin);
@@ -65,29 +68,70 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
         recipient = _recipient;
         whitelist[_admin] = true;
 
+        // Инициализируем baseURI
+        _baseTokenURI = baseURI;
     }
 
-    // Добавляем новый параметр в функцию предложения
+
+    // Определяем события
+    event UserProposed(address indexed proposer, address indexed newUser);
+    event UserRemoved(address indexed admin, address indexed removedUser);
+    event AdminProposed(address indexed proposer, address indexed newAdmin);
+    event AdminRemovalProposed(address indexed proposer, address indexed adminToRemove);
+    event NFTPurchased(address indexed buyer, uint256 nftId, uint256 price, address referrer, uint256 referralReward);
+    event ReferralRewardWithdrawn(address indexed user, uint256 amount);
+    event NftPriceSet(uint256 newPrice);
+    event RecipientSet(address indexed newRecipient);
+    event ReferralPercentageSet(uint256 newPercentage);
+    event ProposalDecision(address indexed target, ProposalType proposalType, bool approved);
+
     function proposeAddUser(address _newUser) external onlyAdmin {
         require(!whitelist[_newUser], "User is already in the whitelist");
         proposedBy[_newUser] = msg.sender; // Store the proposer
         proposedAddUserAddresses[_newUser] = true;
+
+        // Emit event
+        emit UserProposed(msg.sender, _newUser);
     }
+
+    function setBaseURI(string memory baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
+    }
+    function getBaseURI() external view returns (string memory) {
+        return _baseURI();
+    }
+
 
     function proposeRemoveUser(address _removeUser) external onlyAdmin {
         require(whitelist[_removeUser], "Proposed user is not in the whitelist");
         proposedRemoveAddresses[_removeUser] = true;
+
+        // Emit event
+        emit UserRemoved(msg.sender, _removeUser);
     }
+
 
     function proposeAddAdmin(address _newAdmin) external onlyAdmin {
         require(!hasRole(NFT_ADMIN_ROLE, _newAdmin), "Proposed user is already an admin");
         proposedAddAdminAddresses[_newAdmin] = true;
+
+        // Emit event
+        emit AdminProposed(msg.sender, _newAdmin);
     }
+
 
     function proposeRemoveAdmin(address _removeAdmin) external onlyAdmin {
         require(hasRole(NFT_ADMIN_ROLE, _removeAdmin), "Proposed user is not an admin");
         proposedRemoveAdminAddresses[_removeAdmin] = true;
+
+        // Emit event
+        emit AdminRemovalProposed(msg.sender, _removeAdmin);
     }
+
 
     // Универсальная функция для одобрения или отклонения предложений
     // Function to decide on proposals
@@ -138,6 +182,8 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
             // Remove proposal
             proposedRemoveAdminAddresses[_target] = false;
         }
+        emit ProposalDecision(_target, _proposalType, approve);
+
     }
 
     // Функция для постановки на паузу (только админ может вызывать)
@@ -153,35 +199,42 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
     // Function to add an address to the whitelist (default admin only)
     function addToWhitelist(address _user) external onlyOwner {
         whitelist[_user] = true;
+        emit UserProposed(msg.sender, _user); 
     }
 
     // Function to remove an address from the whitelist (default admin only)
     function removeFromWhitelist(address _user) external onlyOwner() {
         whitelist[_user] = false;
+        emit UserRemoved(msg.sender, _user);
     }
 
     function addNewAdmin(address _user) external onlyOwner {
         _grantRole(NFT_ADMIN_ROLE, _user);
+        emit AdminProposed(msg.sender, _user);
     }
 
     // Function to remove an address from the admins (admin only)
     function removeAdmin(address _user) external onlyOwner() {
         _revokeRole(NFT_ADMIN_ROLE, _user);
+        emit AdminProposed(msg.sender, _user);
     }
 
     // Function to set the price of the NFT (only owner)
     function setNftPrice(uint256 _price) external onlyOwner {
         nftPrice = _price;
+        emit NftPriceSet(_price);
     }
 
     // Function to set the recipient address (only owner)
     function setRecipient(address _recipient) external onlyOwner {
         recipient = _recipient;
+        emit RecipientSet(_recipient);
     }
 
     // Function to set referral percentage (only owner)
     function setReferralPercentage(uint256 _percentage) external onlyOwner {
         referralPercentage = _percentage;
+        emit ReferralPercentageSet(_percentage);
     }
 
     // Function to safely mint an NFT (only owner)
@@ -234,6 +287,10 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
         _safeMint(msg.sender, nft_counter);
 
         hasMinted[msg.sender] = true;
+
+        // Emit event for NFT purchase
+        emit NFTPurchased(msg.sender, nft_counter, nftPrice, referrer[msg.sender], referralAmount);
+
     }
 
     // Function to withdraw referral rewards
@@ -242,6 +299,7 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
         require(rewards > 0, "No rewards to withdraw");
         referralRewards[msg.sender] = 0;
         weth.safeTransfer(msg.sender, rewards);
+        emit ReferralRewardWithdrawn(msg.sender, rewards);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, AccessControlEnumerable) returns (bool) {

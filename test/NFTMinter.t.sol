@@ -18,6 +18,8 @@ contract NFTMinterTest is Test {
     address public userInWhitelist;
     address public userNotInWhitelist;
     uint256 public nftPrice = 0.5 ether; // Price of NFT in WETH
+    string public initialBaseURI = "https://api.example.com/metadata/";
+
 
     function setUp() public {
         owner = address(this); // This contract is not the owner in this context
@@ -32,7 +34,7 @@ contract NFTMinterTest is Test {
         mockWETH = new MintableToken("Wrapped ETH", "WETH", 18);
 
         // Deploy NFTMinter contract with specified parameters
-        miner = new NFTMinter(owner, nftPrice, address(mockWETH), recipient);
+        miner = new NFTMinter(owner, nftPrice, address(mockWETH), recipient, initialBaseURI);
         miner.grantRole(miner.NFT_ADMIN_ROLE(), admin);
 
         // Simulate owner calling addToWhitelist
@@ -57,6 +59,46 @@ contract NFTMinterTest is Test {
         vm.prank(owner);
         mockWETH.approve(address(miner), 100 ether);
 
+    }
+    // Тест: Проверка начального значения baseURI при развертывании контракта
+    function testInitialBaseURI() public {
+        // Создаем значение, которое должно быть равно начальному baseURI
+        string memory expectedURI = initialBaseURI;
+
+        // Создаем токен с ID 1
+        vm.prank(owner); // Указываем, что действия выполняются от имени владельца
+        miner.safeMint(userInWhitelist); // Предполагается, что `safeMint` увеличивает ID
+
+        // Проверяем tokenURI для токена с ID 1
+        string memory tokenURI = miner.tokenURI(1);
+
+        // Проверяем, что baseURI является частью tokenURI
+        assertEq(tokenURI, string(abi.encodePacked(expectedURI, "1")), "Initial baseURI should match the provided URI");
+    }
+
+
+
+    // Тест: Изменение baseURI владельцем
+    function testSetBaseURI() public {
+        string memory newBaseURI = "https://newapi.example.com/metadata/";
+
+        // Меняем baseURI как владелец
+        vm.prank(owner); // Указываем, что действия выполняются от имени владельца
+        miner.setBaseURI(newBaseURI);
+
+        // Проверяем, что baseURI изменен
+        assertEq(miner.getBaseURI(), newBaseURI, "New baseURI should be set by the owner");
+    }
+
+
+    // Тест: Попытка изменения baseURI не владельцем
+    function testSetBaseURIByNonOwner() public {
+        string memory newBaseURI = "https://unauthorizedapi.example.com/metadata/";
+
+        // Пытаемся изменить baseURI от имени другого адреса (не owner)
+        vm.prank(userInWhitelist); // Выполняем действия от имени пользователя, который не является владельцем
+        vm.expectRevert("Only the owner can perform this action");
+        miner.setBaseURI(newBaseURI);
     }
 
     // Test that only the owner can add to the whitelist
@@ -147,23 +189,29 @@ contract NFTMinterTest is Test {
 
     // Test referral system
     function testReferralSystem() public {
-        // Admin adds userNotInWhitelist to whitelist directly
-        miner.addToWhitelist(userNotInWhitelist);
-        mockWETH.mint(userNotInWhitelist, 1 ether);
 
-        // userInWhitelist is the referrer
+        // Admin proposes userInWhitelist as referrer for userNotInWhitelist
+        vm.prank(admin); // Администратор предлагает userInWhitelist как реферера
+        miner.proposeAddUser(userNotInWhitelist);
+
+        // Owner decides to approve the proposal
+        vm.prank(owner);
+        miner.decideOnProposal(userNotInWhitelist, NFTMinter.ProposalType.AddUser, true);
+
+        // Mock WETH tokens are minted and approved for purchase
+        mockWETH.mint(userNotInWhitelist, 1 ether);
         vm.prank(userNotInWhitelist);
         mockWETH.approve(address(miner), nftPrice);
 
+        // User makes a purchase
         vm.prank(userNotInWhitelist);
         miner.purchaseNft();
 
-        // Verify that referral reward is recorded
+        // Calculate expected referral reward
         uint256 expectedReward = (nftPrice * miner.referralPercentage()) / 100;
 
-        // TODO if you want this to pass you need to make userInWhitelist a referrer
-        // using proposeAddUser and decideOnProposal
-        // assertEq(miner.referralRewards(userInWhitelist), expectedReward);
+        // Verify that referral reward is recorded for userInWhitelist (the referrer)
+        assertEq(miner.referralRewards(admin), expectedReward, "Referral reward should match expected reward");
     }
 
     // Test withdrawing referral rewards
@@ -200,7 +248,6 @@ contract NFTMinterTest is Test {
         // Проверяем, что после вывода награда обнулена
         assertEq(miner.referralRewards(admin), 0); // Убедимся, что награда обнулилась после вывода
     }
-
 
 
     // Test pausing and unpausing the contract
