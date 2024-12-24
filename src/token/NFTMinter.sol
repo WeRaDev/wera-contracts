@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity =0.8.25;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {AccessControlEnumerable, AccessControl} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
@@ -53,11 +53,11 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
 
     // Constructor accepts the address of the admin, NFT price, WETH contract address, and recipient address
     constructor(
-    address _admin,
-    uint256 _nftPrice,
-    address _wethAddress,
-    address _recipient,
-    string memory baseURI // Новый параметр для baseURI
+        address _admin,
+        uint256 _nftPrice,
+        address _wethAddress,
+        address _recipient,
+        string memory baseURI // Новый параметр для baseURI
     ) ERC721("WeRa", "WeR") {
         _grantRole(DEFAULT_ADMIN_ROLE, _admin); // main owner who can grant and revoke other roles
         _grantRole(NFT_ADMIN_ROLE, _admin);
