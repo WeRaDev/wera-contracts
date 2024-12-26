@@ -246,7 +246,7 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
 
     function purchaseNft() external whenNotPaused {
         require(whitelist[msg.sender], "Address is not in the whitelist");
-        require(weth.balanceOf(msg.sender) >= nftPrice, "Insufficient WETH balance");
+        require(weth.allowance(msg.sender, address(this)) >= nftPrice, "Insufficient WETH approval");
         require(!hasMinted[msg.sender], "Address has already minted an NFT");
 
         // Use proposedBy as the referrer if it exists
@@ -289,7 +289,6 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
 
         // Emit event for NFT purchase
         emit NFTPurchased(msg.sender, nft_counter, nftPrice, referrer[msg.sender], referralAmount);
-
     }
 
     // Function to withdraw referral rewards

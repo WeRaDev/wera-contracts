@@ -176,7 +176,10 @@ contract NFTMinterTest is Test {
         miner.purchaseNft();
 
         vm.prank(userInWhitelist);
+        mockWETH.approve(address(miner), nftPrice);
+
         vm.expectRevert("Address has already minted an NFT");
+        vm.prank(userInWhitelist);
         miner.purchaseNft();
     }
 
