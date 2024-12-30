@@ -27,7 +27,7 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
     mapping(address => bool) public proposedAddAdminAddresses;
     mapping(address => bool) public proposedRemoveAdminAddresses;
 
-    mapping(address => address) public proposedBy; // Маппинг для хранения того, кто предложил нового пользователя
+    mapping(address => address) public proposedBy; // Mapping to store who proposed a new user
 
     /// The counter is always incremented by 1 every mint, so the total number and IDs of all NFTs
     /// can be determined using this variable alone.
@@ -57,7 +57,7 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
         uint256 _nftPrice,
         address _wethAddress,
         address _recipient,
-        string memory baseURI // Новый параметр для baseURI
+        string memory baseURI
     ) ERC721("WeRa", "WeR") {
         _grantRole(DEFAULT_ADMIN_ROLE, _admin); // main owner who can grant and revoke other roles
         _grantRole(NFT_ADMIN_ROLE, _admin);
@@ -68,7 +68,7 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
         recipient = _recipient;
         whitelist[_admin] = true;
 
-        // Инициализируем baseURI
+        // Initialize baseURI
         _baseTokenURI = baseURI;
     }
 
@@ -133,8 +133,7 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
     }
 
 
-    // Универсальная функция для одобрения или отклонения предложений
-    // Function to decide on proposals
+    /// @notice Universal function for approving or rejecting proposals
     function decideOnProposal(address _target, ProposalType _proposalType, bool approve) external onlyOwner {
         // Example correction in decideOnProposal function
         if (_proposalType == ProposalType.AddUser) {
@@ -186,12 +185,12 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
 
     }
 
-    // Функция для постановки на паузу (только админ может вызывать)
+    /// @notice Function to pause the contract (admin only)
     function pauseContract() external onlyAdmin {
         _pause();
     }
 
-    // Функция для снятия с паузы (только админ может вызывать)
+    /// @notice Function to unpause the contract (admin only)
     function unpauseContract() external onlyAdmin {
         _unpause();
     }
@@ -199,7 +198,7 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
     // Function to add an address to the whitelist (default admin only)
     function addToWhitelist(address _user) external onlyOwner {
         whitelist[_user] = true;
-        emit UserProposed(msg.sender, _user); 
+        emit UserProposed(msg.sender, _user);
     }
 
     // Function to remove an address from the whitelist (default admin only)
@@ -247,10 +246,10 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
 
     function purchaseNft() external whenNotPaused {
         require(whitelist[msg.sender], "Address is not in the whitelist");
-        require(weth.balanceOf(msg.sender) >= nftPrice, "Insufficient WETH balance");
+        require(weth.allowance(msg.sender, address(this)) >= nftPrice, "Insufficient WETH approval");
         require(!hasMinted[msg.sender], "Address has already minted an NFT");
 
-        // Используем proposedBy как реферера, если он есть
+        // Use proposedBy as the referrer if it exists
         if (proposedBy[msg.sender] != address(0) && referrer[msg.sender] == address(0)) {
             referrer[msg.sender] = proposedBy[msg.sender];
 
@@ -265,13 +264,13 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
             referralRewards[referrer[msg.sender]] += referralAmount;
         }
 
-        // Рассчитываем 2% для разработчика
+        // Calculate 2% for the developer
         uint256 developerAmount = (nftPrice * 2) / 100;
 
-        // Оставшаяся сумма, которая пойдет получателю
+        // Remaining amount to be sent to the recipient
         uint256 recipientAmount = nftPrice - referralAmount - developerAmount;
 
-        // Перевод WETH получателю, рефереру и разработчику
+        // Transfer WETH to the recipient, referrer, and developer
         weth.safeTransferFrom(msg.sender, recipient, recipientAmount);
 
         if (referralAmount > 0) {
@@ -279,10 +278,10 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
             weth.safeTransferFrom(msg.sender, address(this), referralAmount);
         }
 
-        // Перевод 2% разработчику
+        // Transfer 2% to the developer
         weth.safeTransferFrom(msg.sender, developer, developerAmount);
 
-        // Чеканим NFT для покупателя
+        // Mint an NFT for the buyer
         nft_counter += 1;
         _safeMint(msg.sender, nft_counter);
 
@@ -290,7 +289,6 @@ contract NFTMinter is ERC721, AccessControlEnumerable, Pausable {
 
         // Emit event for NFT purchase
         emit NFTPurchased(msg.sender, nft_counter, nftPrice, referrer[msg.sender], referralAmount);
-
     }
 
     // Function to withdraw referral rewards
