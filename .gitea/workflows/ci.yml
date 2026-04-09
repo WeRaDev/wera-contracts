@@ -1,0 +1,23 @@
+name: ci
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate baseline files
+        run: |
+          test -f README.md
+          test -f CONTRIBUTING.md
+          if [ ! -f WARP.md ] && [ ! -f warp.md ]; then
+            echo "WARP.md missing"
+            exit 1
+          fi
+      - name: Quick repository sanity
+        run: |
+          if [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+            python3 -m compileall -q .
+          fi
