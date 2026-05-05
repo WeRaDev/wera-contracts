@@ -79,9 +79,9 @@ jobs:
               return "PASS" if o == "success" else "FAIL"
 
           checks = [
-              ("Format (forge fmt)", os.environ["FORMAT_RESULT"], f"{os.environ.get(\'REVISOR_PREFIX\', \'/tmp/revisor\')}_fmt.txt"),
-              ("Build (forge build)", os.environ["BUILD_RESULT"], f"{os.environ.get(\'REVISOR_PREFIX\', \'/tmp/revisor\')}_build.txt"),
-              ("Tests (forge test)",  os.environ["TESTS_RESULT"], f"{os.environ.get(\'REVISOR_PREFIX\', \'/tmp/revisor\')}_tests.txt"),
+              ("Format (forge fmt)", os.environ["FORMAT_RESULT"], f"{os.environ.get('REVISOR_PREFIX', '/tmp/revisor')}_fmt.txt"),
+              ("Build (forge build)", os.environ["BUILD_RESULT"], f"{os.environ.get('REVISOR_PREFIX', '/tmp/revisor')}_build.txt"),
+              ("Tests (forge test)",  os.environ["TESTS_RESULT"], f"{os.environ.get('REVISOR_PREFIX', '/tmp/revisor')}_tests.txt"),
           ]
 
           all_pass   = all(o == "success" for _, o, _ in checks)
