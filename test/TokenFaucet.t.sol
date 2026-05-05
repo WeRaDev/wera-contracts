@@ -11,17 +11,11 @@ contract TokenFaucetTest is Test {
     TokenFaucet public faucet;
     address public token;
 
-    TokenFaucet.ClaimSettings public claimSettings = TokenFaucet.ClaimSettings({
-        claimAmount: 100 * 1e18,
-        withholdPeriod: 3600
-    });
+    TokenFaucet.ClaimSettings public claimSettings =
+        TokenFaucet.ClaimSettings({claimAmount: 100 * 1e18, withholdPeriod: 3600});
 
-    TokenFaucet.TokenDefinition public tokenDefinition = TokenFaucet.TokenDefinition({
-        name: "TestToken",
-        symbol: "TT",
-        decimals: 18,
-        claimSettings: claimSettings
-    });
+    TokenFaucet.TokenDefinition public tokenDefinition =
+        TokenFaucet.TokenDefinition({name: "TestToken", symbol: "TT", decimals: 18, claimSettings: claimSettings});
 
     function setUp() public {
         vm.startPrank(msg.sender);

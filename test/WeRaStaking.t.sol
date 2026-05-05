@@ -31,17 +31,12 @@ contract TokenFaucetTest is Test {
         address diamondOwner = alice;
         address stakingTokenManager = alice;
 
-
         DiamondCutFacet diamondCutFacet = new DiamondCutFacet();
         DiamondLoupeFacet diamondLoupeFacet = new DiamondLoupeFacet();
         WeRaStakingFacet weRaStakingFacet = new WeRaStakingFacet();
 
-        diamond = new Diamond(
-            diamondOwner,
-            address(diamondCutFacet),
-            address(diamondLoupeFacet),
-            address(weRaStakingFacet)
-        );
+        diamond =
+            new Diamond(diamondOwner, address(diamondCutFacet), address(diamondLoupeFacet), address(weRaStakingFacet));
 
         staking = IWeRaStakingFacet(address(diamond));
 
