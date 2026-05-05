@@ -24,7 +24,7 @@ jobs:
         run: |
           curl -sSL https://foundry.paradigm.xyz | bash
           export PATH="$HOME/.foundry/bin:$PATH"
-          foundryup 2>&1 | tee /tmp/revisor_foundry.txt
+          foundryup 2>&1 | tee /tmp/revisor_${GITHUB_RUN_ID}_foundry.txt
           exit ${PIPESTATUS[1]}
 
       - name: Format check (forge fmt)
@@ -32,7 +32,7 @@ jobs:
         continue-on-error: true
         run: |
           export PATH="$HOME/.foundry/bin:$PATH"
-          forge fmt --check 2>&1 | tee /tmp/revisor_fmt.txt
+          forge fmt --check 2>&1 | tee /tmp/revisor_${GITHUB_RUN_ID}_fmt.txt
           exit ${PIPESTATUS[0]}
 
       - name: Build (forge build)
@@ -40,7 +40,7 @@ jobs:
         continue-on-error: true
         run: |
           export PATH="$HOME/.foundry/bin:$PATH"
-          forge build 2>&1 | tee /tmp/revisor_build.txt
+          forge build 2>&1 | tee /tmp/revisor_${GITHUB_RUN_ID}_build.txt
           exit ${PIPESTATUS[0]}
 
       - name: Tests (forge test)
@@ -48,7 +48,7 @@ jobs:
         continue-on-error: true
         run: |
           export PATH="$HOME/.foundry/bin:$PATH"
-          forge test -vvv 2>&1 | tee /tmp/revisor_tests.txt
+          forge test -vvv 2>&1 | tee /tmp/revisor_${GITHUB_RUN_ID}_tests.txt
           exit ${PIPESTATUS[0]}
 
       - name: Post Revisor review comment
@@ -62,6 +62,7 @@ jobs:
           BUILD_RESULT: ${{ steps.build.outcome }}
           TESTS_RESULT: ${{ steps.tests.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REVISOR_PREFIX: /tmp/revisor_${{ github.run_id }}
         run: |
           python3 - <<'PY'
           import json, os, urllib.request
@@ -78,9 +79,9 @@ jobs:
               return "PASS" if o == "success" else "FAIL"
 
           checks = [
-              ("Format (forge fmt)", os.environ["FORMAT_RESULT"], "/tmp/revisor_fmt.txt"),
-              ("Build (forge build)", os.environ["BUILD_RESULT"], "/tmp/revisor_build.txt"),
-              ("Tests (forge test)",  os.environ["TESTS_RESULT"], "/tmp/revisor_tests.txt"),
+              ("Format (forge fmt)", os.environ["FORMAT_RESULT"], f"{os.environ.get(\'REVISOR_PREFIX\', \'/tmp/revisor\')}_fmt.txt"),
+              ("Build (forge build)", os.environ["BUILD_RESULT"], f"{os.environ.get(\'REVISOR_PREFIX\', \'/tmp/revisor\')}_build.txt"),
+              ("Tests (forge test)",  os.environ["TESTS_RESULT"], f"{os.environ.get(\'REVISOR_PREFIX\', \'/tmp/revisor\')}_tests.txt"),
           ]
 
           all_pass   = all(o == "success" for _, o, _ in checks)
