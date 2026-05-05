@@ -1,0 +1,118 @@
+name: wera-contracts-revisor
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  revisor-qa:
+    name: Revisor QA Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          github-server-url: http://127.0.0.1:3000
+          submodules: recursive
+
+      - name: Install Foundry
+        id: foundry_install
+        continue-on-error: true
+        run: |
+          curl -sSL https://foundry.paradigm.xyz | bash
+          export PATH="$HOME/.foundry/bin:$PATH"
+          foundryup 2>&1 | tee /tmp/revisor_foundry.txt
+          exit ${PIPESTATUS[1]}
+
+      - name: Format check (forge fmt)
+        id: format
+        continue-on-error: true
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          forge fmt --check 2>&1 | tee /tmp/revisor_fmt.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Build (forge build)
+        id: build
+        continue-on-error: true
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          forge build 2>&1 | tee /tmp/revisor_build.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Tests (forge test)
+        id: tests
+        continue-on-error: true
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          forge test -vvv 2>&1 | tee /tmp/revisor_tests.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Post Revisor review comment
+        if: always()
+        env:
+          WERA_GITEA_TOKEN: ${{ secrets.WERA_GITEA_TOKEN }}
+          GITEA_URL: http://127.0.0.1:3000
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.number }}
+          FORMAT_RESULT: ${{ steps.format.outcome }}
+          BUILD_RESULT: ${{ steps.build.outcome }}
+          TESTS_RESULT: ${{ steps.tests.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+
+          def read_tail(path, max_chars=2000):
+              try:
+                  text = Path(path).read_text(encoding="utf-8").strip()
+                  return text[-max_chars:] if len(text) > max_chars else text
+              except Exception:
+                  return "(output not available)"
+
+          def icon(o):
+              return "PASS" if o == "success" else "FAIL"
+
+          checks = [
+              ("Format (forge fmt)", os.environ["FORMAT_RESULT"], "/tmp/revisor_fmt.txt"),
+              ("Build (forge build)", os.environ["BUILD_RESULT"], "/tmp/revisor_build.txt"),
+              ("Tests (forge test)",  os.environ["TESTS_RESULT"], "/tmp/revisor_tests.txt"),
+          ]
+
+          all_pass   = all(o == "success" for _, o, _ in checks)
+          any_failed = any(o == "failure"  for _, o, _ in checks)
+          verdict = "PASS" if all_pass else ("CHANGES REQUIRED" if any_failed else "PASS WITH RISK")
+
+          run_url = os.environ.get("RUN_URL", "")
+          lines = ["## Revisor QA Audit", "", f"**QA Verdict: {verdict}**  ·  [workflow run]({run_url})", "", "| Check | Result |", "|---|---|"]
+          for name, outcome, _ in checks:
+              lines.append(f"| {name} | {icon(outcome)} |")
+          failing = [(n, p) for n, o, p in checks if o != "success"]
+          if failing:
+              lines += ["", "### Failing check output"]
+              for name, path in failing:
+                  lines += [f"<details><summary>{name}</summary>", "", "```", read_tail(path), "```", "</details>", ""]
+
+          body = "\n".join(lines)
+          repo = os.environ["GITHUB_REPOSITORY"]
+          owner, repo_name = repo.split("/", 1)
+          token = os.environ.get("WERA_GITEA_TOKEN", "")
+          gitea_url = os.environ["GITEA_URL"]
+          pr_number = os.environ["PR_NUMBER"]
+
+          if not token:
+              print("WERA_GITEA_TOKEN not set; skipping")
+          else:
+              url = f"{gitea_url}/api/v1/repos/{owner}/{repo_name}/issues/{pr_number}/comments"
+              req = urllib.request.Request(url, data=json.dumps({"body": body}).encode("utf-8"),
+                  headers={"Authorization": f"token {token}", "Content-Type": "application/json"}, method="POST")
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      print(f"Revisor comment posted: HTTP {resp.status} | Verdict: {verdict}")
+              except Exception as exc:
+                  print(f"Failed to post review comment: {exc}")
+          PY
