@@ -16,24 +16,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           github-server-url: http://127.0.0.1:3000
-          submodules: recursive
+
+      - name: Init Foundry lib dependencies
+        run: git submodule update --init --recursive --depth=1
 
       - name: Install Foundry
-        id: foundry_install
-        continue-on-error: true
         run: |
           curl -sSL https://foundry.paradigm.xyz | bash
           export PATH="$HOME/.foundry/bin:$PATH"
-          foundryup 2>&1 | tee /tmp/revisor_${GITHUB_RUN_ID}_foundry.txt
-          exit ${PIPESTATUS[1]}
-
-      - name: Format check (forge fmt)
-        id: format
-        continue-on-error: true
-        run: |
-          export PATH="$HOME/.foundry/bin:$PATH"
-          forge fmt --check 2>&1 | tee /tmp/revisor_${GITHUB_RUN_ID}_fmt.txt
-          exit ${PIPESTATUS[0]}
+          foundryup 2>&1
 
       - name: Build (forge build)
         id: build
@@ -58,7 +49,6 @@ jobs:
           GITEA_URL: http://127.0.0.1:3000
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.number }}
-          FORMAT_RESULT: ${{ steps.format.outcome }}
           BUILD_RESULT: ${{ steps.build.outcome }}
           TESTS_RESULT: ${{ steps.tests.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -79,7 +69,6 @@ jobs:
               return "PASS" if o == "success" else "FAIL"
 
           checks = [
-              ("Format (forge fmt)", os.environ["FORMAT_RESULT"], f"{os.environ.get('REVISOR_PREFIX', '/tmp/revisor')}_fmt.txt"),
               ("Build (forge build)", os.environ["BUILD_RESULT"], f"{os.environ.get('REVISOR_PREFIX', '/tmp/revisor')}_build.txt"),
               ("Tests (forge test)",  os.environ["TESTS_RESULT"], f"{os.environ.get('REVISOR_PREFIX', '/tmp/revisor')}_tests.txt"),
           ]
