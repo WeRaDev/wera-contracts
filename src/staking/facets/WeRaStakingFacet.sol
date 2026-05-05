@@ -3,7 +3,9 @@ pragma solidity =0.8.25;
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {ERC20BurnableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import {
+    ERC20BurnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -44,10 +46,7 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
     //============================================================================================//
 
     /// @dev Contrcutor can not be used in proxy contracts
-    function initialize(
-        address tokenManager_,
-        address weRaToken_
-    ) external notInitialized {
+    function initialize(address tokenManager_, address weRaToken_) external notInitialized {
         _grantRole(DEFAULT_ADMIN_ROLE, tokenManager_);
         _grantRole(STAKE_TOKENS_MANAGER, tokenManager_);
 
@@ -58,27 +57,15 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
     //                                        EXTERNAL                                            //
     //============================================================================================//
 
-    function stakeFor(address token_, address receiver_, uint256 amount_)
-        external
-        onlyStakeToken(token_)
-        nonReentrant
-    {
+    function stakeFor(address token_, address receiver_, uint256 amount_) external onlyStakeToken(token_) nonReentrant {
         _stake(token_, msg.sender, receiver_, amount_);
     }
 
-    function stake(address token_, uint256 amount_)
-        external
-        onlyStakeToken(token_)
-        nonReentrant
-    {
+    function stake(address token_, uint256 amount_) external onlyStakeToken(token_) nonReentrant {
         _stake(token_, msg.sender, msg.sender, amount_);
     }
 
-    function unstake(address token_, address receiver_, uint256 amount_)
-        external
-        onlyStakeToken(token_)
-        nonReentrant
-    {
+    function unstake(address token_, address receiver_, uint256 amount_) external onlyStakeToken(token_) nonReentrant {
         _unstake(token_, msg.sender, receiver_, amount_);
     }
 
@@ -116,12 +103,7 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
     //                                        INTERNAL                                            //
     //============================================================================================//
 
-    function _stake(
-        address token_,
-        address supplier_,
-        address receiver_,
-        uint256 amount_
-    ) internal {
+    function _stake(address token_, address supplier_, address receiver_, uint256 amount_) internal {
         if (amount_ == 0) revert ZeroStake();
 
         Storage.WeRaStakingStorage storage s = Storage.getStorage();
@@ -135,12 +117,7 @@ contract WeRaStakingFacet is IWeRaStakingFacet, AccessControlUpgradeable, Reentr
         emit StakeAdded(token_, supplier_, receiver_, amount_);
     }
 
-    function _unstake(
-        address token_,
-        address staker_,
-        address receiver_,
-        uint256 amount_
-    ) internal {
+    function _unstake(address token_, address staker_, address receiver_, uint256 amount_) internal {
         if (amount_ == 0) revert ZeroUnstake();
 
         Storage.WeRaStakingStorage storage s = Storage.getStorage();

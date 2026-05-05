@@ -67,10 +67,7 @@ contract TokenFaucet is Ownable {
 
         if (lastAccountsClaims[msg.sender] != 0) {
             // require account withholdPeriod to pass
-            require(
-                lastAccountsClaims[msg.sender] + settings.withholdPeriod < block.timestamp,
-                "claim exhausted"
-            );
+            require(lastAccountsClaims[msg.sender] + settings.withholdPeriod < block.timestamp, "claim exhausted");
         }
 
         // save timestamp
@@ -88,10 +85,7 @@ contract TokenFaucet is Ownable {
     function updateClaimSettings(ClaimSettings memory claimSettings_) external onlyOwner {
         tokenDefinition.claimSettings = claimSettings_;
 
-        emit ClaimSettingsUpdated(
-            claimSettings_.claimAmount,
-            claimSettings_.withholdPeriod
-        );
+        emit ClaimSettingsUpdated(claimSettings_.claimAmount, claimSettings_.withholdPeriod);
     }
 
     // ========= VIEW ========= //
@@ -117,18 +111,13 @@ contract TokenFaucet is Ownable {
     function _deployFaucetToken(TokenDefinition memory tokenDefinition_) internal {
         tokenDefinition = tokenDefinition_;
 
-        MintableToken token = new MintableToken(
-            tokenDefinition_.name,
-            tokenDefinition_.symbol,
-            tokenDefinition_.decimals
-        );
+        MintableToken token =
+            new MintableToken(tokenDefinition_.name, tokenDefinition_.symbol, tokenDefinition_.decimals);
 
         faucetToken = address(token);
 
         emit TokenAdded(
-            address(token),
-            tokenDefinition_.claimSettings.claimAmount,
-            tokenDefinition_.claimSettings.withholdPeriod
+            address(token), tokenDefinition_.claimSettings.claimAmount, tokenDefinition_.claimSettings.withholdPeriod
         );
     }
 }

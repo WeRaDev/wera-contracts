@@ -23,32 +23,21 @@ interface IWeRaStakingFacet {
     // ========= STRUCTS ========= //
 
     struct StakeBalance {
-        mapping (address => uint256) balances;
+        mapping(address => uint256) balances;
         uint256 totalBalance;
     }
 
     // ========= EVENTS ========= //
 
-    event StakeAdded(
-        address indexed token,
-        address indexed supplier,
-        address indexed receiver,
-        uint256 value
-    );
+    event StakeAdded(address indexed token, address indexed supplier, address indexed receiver, uint256 value);
 
-    event StakeRemoved(
-        address indexed token,
-        address indexed staker,
-        address indexed receiver,
-        uint256 value
-    );
+    event StakeRemoved(address indexed token, address indexed staker, address indexed receiver, uint256 value);
 
     // ========= ROLE ========= //
 
     function STAKE_TOKENS_MANAGER() external view returns (bytes32);
 
     // ========= FUNCTIONS ========= //
-
 
     function initialize(address tokenManager_, address weRaToken_) external;
 
@@ -59,7 +48,6 @@ interface IWeRaStakingFacet {
     function unstake(address token_, address receiver_, uint256 amount_) external;
 
     function addStakeToken(address token_) external;
-
 
     function getTokenBalance(address token_, address staker_) external view returns (uint256);
 

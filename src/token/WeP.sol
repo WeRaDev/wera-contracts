@@ -13,10 +13,7 @@ import {IWeP} from "./IWeP.sol";
 contract WeP is IWeP, ERC20, ERC20Burnable, AccessControl, ERC20Permit, ERC20Votes {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor(address defaultAdmin_, address minter_)
-        ERC20("WeP", "WeP")
-        ERC20Permit("WeP")
-    {
+    constructor(address defaultAdmin_, address minter_) ERC20("WeP", "WeP") ERC20Permit("WeP") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin_);
         _grantRole(MINTER_ROLE, minter_);
     }
@@ -36,19 +33,11 @@ contract WeP is IWeP, ERC20, ERC20Burnable, AccessControl, ERC20Permit, ERC20Vot
 
     // The following functions are overrides required by Solidity.
 
-    function _update(address from_, address to_, uint256 value_)
-        internal
-        override(ERC20, ERC20Votes)
-    {
+    function _update(address from_, address to_, uint256 value_) internal override(ERC20, ERC20Votes) {
         super._update(from_, to_, value_);
     }
 
-    function nonces(address owner_)
-        public
-        view
-        override(ERC20Permit, Nonces)
-        returns (uint256)
-    {
+    function nonces(address owner_) public view override(ERC20Permit, Nonces) returns (uint256) {
         return super.nonces(owner_);
     }
 }

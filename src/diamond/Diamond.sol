@@ -8,21 +8,17 @@ pragma solidity =0.8.25;
 * Implementation of a diamond.
 /******************************************************************************/
 
-import { LibDiamond } from "./libraries/LibDiamond.sol";
-import { IDiamondCut } from "./interfaces/IDiamondCut.sol";
-import { IDiamondLoupe } from "./interfaces/IDiamondLoupe.sol";
-import { IERC165 } from "./interfaces/IERC165.sol";
+import {LibDiamond} from "./libraries/LibDiamond.sol";
+import {IDiamondCut} from "./interfaces/IDiamondCut.sol";
+import {IDiamondLoupe} from "./interfaces/IDiamondLoupe.sol";
+import {IERC165} from "./interfaces/IERC165.sol";
 
-import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
-import { IWeRaStakingFacet } from "../staking/interfaces/IWeRaStakingFacet.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {IWeRaStakingFacet} from "../staking/interfaces/IWeRaStakingFacet.sol";
 
 contract Diamond {
-    constructor(
-        address _diamondOwner,
-        address _diamondCutFacet,
-        address _diamondLoupeFacet,
-        address _weRaStakingFacet
-    ) payable {
+    constructor(address _diamondOwner, address _diamondCutFacet, address _diamondLoupeFacet, address _weRaStakingFacet)
+        payable {
         LibDiamond.setContractOwner(_diamondOwner);
 
         // Add the diamondCut external function from the diamondCutFacet
@@ -32,9 +28,7 @@ contract Diamond {
         bytes4[] memory cutFacetSelectors = new bytes4[](1);
         cutFacetSelectors[0] = IDiamondCut.diamondCut.selector;
         cut[0] = IDiamondCut.FacetCut({
-            facetAddress: _diamondCutFacet,
-            action: IDiamondCut.FacetCutAction.Add,
-            functionSelectors: cutFacetSelectors
+            facetAddress: _diamondCutFacet, action: IDiamondCut.FacetCutAction.Add, functionSelectors: cutFacetSelectors
         });
 
         // Diamond Loupe Facet
@@ -106,12 +100,12 @@ contract Diamond {
             returndatacopy(0, 0, returndatasize())
             // return any return value or error back to the caller
             switch result
-                case 0 {
-                    revert(0, returndatasize())
-                }
-                default {
-                    return(0, returndatasize())
-                }
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
         }
     }
 
